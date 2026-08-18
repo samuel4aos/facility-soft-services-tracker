@@ -117,6 +117,14 @@ const SEED_TEMPLATES: SeedTemplate[] = [
     recurrenceConfig: { dayOfMonth: null },
     instructions: "Ensure LAWMA truck evacuates all waste. Photograph empty bay.",
   },
+  {
+    name: "IT Server Room Cleaning",
+    location: "IT server room",
+    recurrenceType: "monthly",
+    recurrenceConfig: { dayOfMonth: 1 },
+    criticality: "critical",
+    instructions: "Supervised by Imoh. Clean raised floor tiles (anti-static mop), wipe server racks, check cable management, clean air filters, ensure no water ingress. Photo proof required for each section.",
+  },
 ];
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }> {
