@@ -319,6 +319,45 @@ export const consumableUsage = pgTable("consumable_usage", {
   index("consumable_usage_consumable_idx").on(t.consumableId),
 ]);
 
+export const restockRequestStatusEnum = pgEnum("restock_request_status", [
+  "pending", "approved", "ordered", "received", "cancelled",
+]);
+
+export const restockRequests = pgTable("restock_requests", {
+  id: serial("id").primaryKey(),
+  facilityId: integer("facility_id").notNull().references(() => facilities.id),
+  consumableId: integer("consumable_id").notNull().references(() => consumables.id),
+  requestedById: integer("requested_by_id").notNull().references(() => users.id),
+  approvedById: integer("approved_by_id").references(() => users.id),
+  quantity: integer("quantity").notNull(),
+  supplier: text("supplier"),
+  notes: text("notes"),
+  status: restockRequestStatusEnum("status").notNull().default("pending"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  orderedAt: timestamp("ordered_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("restock_requests_facility_idx").on(t.facilityId),
+  index("restock_requests_status_idx").on(t.status),
+  index("restock_requests_consumable_idx").on(t.consumableId),
+]);
+
+export const stockAdjustments = pgTable("stock_adjustments", {
+  id: serial("id").primaryKey(),
+  facilityId: integer("facility_id").notNull().references(() => facilities.id),
+  consumableId: integer("consumable_id").notNull().references(() => consumables.id),
+  adjustedById: integer("adjusted_by_id").notNull().references(() => users.id),
+  previousStock: integer("previous_stock").notNull(),
+  newStock: integer("new_stock").notNull(),
+  adjustment: integer("adjustment").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("stock_adjustments_consumable_idx").on(t.consumableId),
+]);
+
 export const incidentStatusEnum = pgEnum("incident_status", [
   "open",
   "assigned",
@@ -433,3 +472,5 @@ export type Notification = typeof notifications.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type Incident = typeof incidents.$inferSelect;
 export type IncidentPhoto = typeof incidentPhotos.$inferSelect;
+export type RestockRequest = typeof restockRequests.$inferSelect;
+export type StockAdjustment = typeof stockAdjustments.$inferSelect;
