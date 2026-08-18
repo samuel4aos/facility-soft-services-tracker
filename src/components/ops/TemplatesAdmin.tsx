@@ -16,6 +16,40 @@ type Template = {
   assignedName: string | null;
   summary: string;
   nextDue: string | null;
+  areaGroup: string | null;
+  sortOrder: number;
+  timingType: string | null;
+};
+
+const AREA_GROUPS = [
+  "Reception & Common Areas",
+  "Restrooms",
+  "Kitchen / Breakroom",
+  "Carpark & Security",
+  "Office Areas",
+  "Pump Rooms",
+  "Weekly Deep Clean",
+  "Monthly Specialist",
+  "Ad-hoc Tasks",
+];
+
+const TIMING_OPTIONS: [string, string][] = [
+  ["", "(none)"],
+  ["before_resumption", "Before Staff Resumption"],
+  ["morning_close", "Morning + Close of Work"],
+  ["hourly", "Every Hour"],
+  ["daily", "Once Daily"],
+  ["weekly", "Weekly"],
+  ["monthly", "Monthly"],
+];
+
+const TIMING_COLORS: Record<string, string> = {
+  before_resumption: "bg-amber-100 text-amber-700",
+  morning_close: "bg-blue-100 text-blue-700",
+  hourly: "bg-purple-100 text-purple-700",
+  daily: "bg-sky-100 text-sky-700",
+  weekly: "bg-emerald-100 text-emerald-700",
+  monthly: "bg-slate-200 text-slate-600",
 };
 
 type UserRow = { id: number; name: string; role: string };
@@ -59,6 +93,8 @@ type FormState = {
   endHour: number;
   intervalHours: number;
   dueTime: string;
+  areaGroup: string;
+  timingType: string;
 };
 
 const EMPTY: FormState = {
@@ -82,6 +118,8 @@ const EMPTY: FormState = {
   endHour: 17,
   intervalHours: 1,
   dueTime: "",
+  areaGroup: "",
+  timingType: "",
 };
 
 export default function TemplatesAdmin() {
@@ -90,6 +128,17 @@ export default function TemplatesAdmin() {
   const [form, setForm] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const grouped = (() => {
+    const map = new Map<string, Template[]>();
+    for (const t of templates) {
+      const key = t.areaGroup || "Uncategorised";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    for (const [, arr] of map) arr.sort((a, b) => a.sortOrder - b.sortOrder);
+    return map;
+  })();
 
   const load = useCallback(async () => {
     const res = await fetch("/api/ops/templates", { cache: "no-store" });
@@ -130,6 +179,8 @@ export default function TemplatesAdmin() {
       endHour: Number(cfg.endHour ?? 17),
       intervalHours: Number(cfg.intervalHours ?? 1),
       dueTime: (cfg.dueTime as string) ?? "",
+      areaGroup: t.areaGroup ?? "",
+      timingType: t.timingType ?? "",
     });
     setMsg(null);
   }
@@ -146,6 +197,8 @@ export default function TemplatesAdmin() {
       instructions: form.instructions,
       assignedUserId: form.assignedUserId || null,
       active: form.active,
+      areaGroup: form.areaGroup || null,
+      timingType: form.timingType || null,
       recurrenceConfig: {
         weekday: form.weekday,
         weekdays: form.weekdays,
@@ -198,52 +251,57 @@ export default function TemplatesAdmin() {
             + New task
           </button>
         </div>
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Task</th>
-              <th className="px-4 py-2">Schedule</th>
-              <th className="px-4 py-2">Next due</th>
-              <th className="px-4 py-2">Assigned</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {templates.map((t) => (
-              <tr key={t.id} className={t.active ? "" : "opacity-50"}>
-                <td className="px-4 py-2">
-                  <p className="font-medium text-slate-800">{t.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {t.location}
-                    {t.criticality === "critical" && (
-                      <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] uppercase text-rose-700">
-                        critical
-                      </span>
-                    )}
-                    {t.requiresPhoto && <span className="ml-2">📷 photo required</span>}
-                  </p>
-                </td>
-                <td className="px-4 py-2 text-slate-600">
-                  {t.summary}
-                  <span className="ml-1 text-xs text-slate-400">({t.recurrenceType})</span>
-                </td>
-                <td className="px-4 py-2 text-slate-600">{t.nextDue ?? "—"}</td>
-                <td className="px-4 py-2 text-slate-600">{t.assignedName ?? "Any janitor"}</td>
-                <td className="px-4 py-2 text-right">
-                  <button onClick={() => edit(t)} className="text-sky-600 hover:underline">
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => softDelete(t.id)}
-                    className="ml-3 text-rose-600 hover:underline"
+        <div className="max-h-[70vh] overflow-y-auto">
+          {[...grouped.entries()].map(([group, items]) => (
+            <div key={group}>
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {group}
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {items.map((t) => (
+                  <li
+                    key={t.id}
+                    className={`flex items-center justify-between px-4 py-2.5 ${t.active ? "" : "opacity-50"}`}
                   >
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium text-slate-800">{t.name}</p>
+                        {t.timingType && (
+                          <span
+                            className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${TIMING_COLORS[t.timingType] ?? "bg-slate-100 text-slate-500"}`}
+                          >
+                            {TIMING_OPTIONS.find(([v]) => v === t.timingType)?.[1] ?? t.timingType}
+                          </span>
+                        )}
+                        {t.criticality === "critical" && (
+                          <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] uppercase text-rose-700">
+                            critical
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {t.summary}
+                        {t.assignedName && <span className="ml-2">· {t.assignedName}</span>}
+                        {!t.active && <span className="ml-2 text-slate-400">(inactive)</span>}
+                      </p>
+                    </div>
+                    <div className="ml-3 shrink-0 text-right text-xs">
+                      <button onClick={() => edit(t)} className="text-sky-600 hover:underline">
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => softDelete(t.id)}
+                        className="ml-2 text-rose-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -272,6 +330,33 @@ export default function TemplatesAdmin() {
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
+            </L>
+            <L label="Area group">
+              <select
+                className="input w-full"
+                value={form.areaGroup}
+                onChange={(e) => setForm({ ...form, areaGroup: e.target.value })}
+              >
+                <option value="">(none)</option>
+                {AREA_GROUPS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </L>
+            <L label="Timing type">
+              <select
+                className="input w-full"
+                value={form.timingType}
+                onChange={(e) => setForm({ ...form, timingType: e.target.value })}
+              >
+                {TIMING_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </L>
             <L label="Recurrence type">
               <select

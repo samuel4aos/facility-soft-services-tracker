@@ -35,6 +35,9 @@ export async function GET() {
       assignedUserId: taskTemplates.assignedUserId,
       assignedName: users.name,
       facilityId: taskTemplates.facilityId,
+      areaGroup: taskTemplates.areaGroup,
+      sortOrder: taskTemplates.sortOrder,
+      timingType: taskTemplates.timingType,
     })
     .from(taskTemplates)
     .leftJoin(users, eq(users.id, taskTemplates.assignedUserId))
@@ -46,7 +49,7 @@ export async function GET() {
           : eq(taskTemplates.facilityId, session.facilityId),
       ),
     )
-    .orderBy(taskTemplates.name);
+    .orderBy(taskTemplates.areaGroup, taskTemplates.sortOrder, taskTemplates.name);
 
   const today = todayISO();
   return Response.json({
@@ -101,6 +104,8 @@ export async function POST(request: Request) {
       criticality: body.criticality === "critical" ? "critical" : "standard",
       assignedUserId: body.assignedUserId ? Number(body.assignedUserId) : null,
       active: body.active !== false,
+      areaGroup: (body.areaGroup as string) || null,
+      timingType: (body.timingType as string) || null,
     })
     .returning();
 

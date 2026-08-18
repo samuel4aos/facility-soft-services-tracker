@@ -76,6 +76,14 @@ export async function PATCH(
             : null
           : existing.assignedUserId,
       active: body.active !== undefined ? Boolean(body.active) : existing.active,
+      areaGroup:
+        body.areaGroup !== undefined
+          ? (body.areaGroup as string) || null
+          : existing.areaGroup,
+      timingType:
+        body.timingType !== undefined
+          ? (body.timingType as string) || null
+          : existing.timingType,
     })
     .where(eq(taskTemplates.id, templateId))
     .returning();

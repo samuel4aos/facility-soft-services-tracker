@@ -81,6 +81,9 @@ export const taskTemplates = pgTable(
     name: text("name").notNull(),
     location: text("location"),
     category: text("category").notNull().default("soft_service"),
+    areaGroup: text("area_group"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    timingType: text("timing_type"),
     recurrenceType: recurrenceTypeEnum("recurrence_type").notNull(),
     recurrenceConfig: jsonb("recurrence_config").notNull().default({}),
     requiresPhoto: boolean("requires_photo").notNull().default(true),
@@ -93,7 +96,10 @@ export const taskTemplates = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("task_templates_facility_idx").on(t.facilityId)],
+  (t) => [
+    index("task_templates_facility_idx").on(t.facilityId),
+    index("task_templates_area_group_idx").on(t.areaGroup),
+  ],
 );
 
 export const taskOccurrences = pgTable(
