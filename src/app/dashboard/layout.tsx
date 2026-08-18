@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getSession } from "@/lib/auth";
 import LogoutButton from "@/components/ops/LogoutButton";
+import NotificationBell from "@/components/NotificationBell";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             {[
               { href: "/dashboard", label: "Overview" },
               { href: "/dashboard/tasks", label: "Tasks" },
+              { href: "/dashboard/incidents", label: "Incidents" },
               { href: "/dashboard/logs", label: "Logs" },
               { href: "/dashboard/templates", label: "Schedules" },
               { href: "/dashboard/users", label: "Users" },
               { href: "/dashboard/consumables", label: "Consumables" },
-              ...(isSuperAdmin ? [{ href: "/dashboard/facilities", label: "Facilities" }] : []),
+              ...(isSuperAdmin
+                ? [
+                    { href: "/dashboard/facilities", label: "Facilities" },
+                    { href: "/dashboard/report", label: "Report Issue" },
+                  ]
+                : []),
               { href: "/dashboard/audit", label: "Audit" },
               { href: "/dashboard/settings", label: "Settings" },
             ].map((l) => (
@@ -42,6 +49,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm text-slate-500">
+            <NotificationBell />
             <span>
               {session.name} · <span className="uppercase tracking-wide">{session.role.replace("_", " ")}</span>
             </span>

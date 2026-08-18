@@ -17,6 +17,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("push", (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || "Soft Services";
+  const options = {
+    body: data.message,
+    icon: "/icons/icon-512.png",
+    badge: "/icons/icon-512.png",
+    data: data.url || "/app",
+    tag: data.tag || "notification",
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data));
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;

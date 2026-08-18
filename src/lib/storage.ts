@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { uploadToCloudinary } from "./cloudinary";
 
 /**
  * Object-storage abstraction. Photos never live in Postgres — only their keys.
- * If S3-compatible credentials are configured we upload there, otherwise we
- * fall back to a local object store on disk (dev / sandbox).
+ * Priority: Cloudinary > S3 > local disk.
  */
+const CLOUDINARY_URL = (process.env.CLOUDINARY_URL ?? "").trim();
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_BUCKET = process.env.S3_BUCKET;
 const S3_KEY = process.env.S3_ACCESS_KEY_ID;
@@ -83,6 +84,19 @@ export async function putObject(
     .randomUUID()
     .slice(0, 12)}.${extFromMime(mime)}`;
 
+  // Try Cloudinary first
+  if (CLOUDINARY_URL) {
+    try {
+      const base64Data = buffer.toString("base64");
+      const dataUrl = `data:${mime};base64,${base64Data}`;
+      const result = await uploadToCloudinary(dataUrl, prefix);
+      return { key: result.publicId, url: result.url };
+    } catch {
+      // fall through to S3 or local
+    }
+  }
+
+  // Try S3
   if (S3_ENDPOINT && S3_BUCKET && S3_KEY && S3_SECRET) {
     try {
       return await putS3(key, buffer, mime);
@@ -91,6 +105,7 @@ export async function putObject(
     }
   }
 
+  // Local fallback
   const target = path.join(LOCAL_DIR, key);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, buffer);

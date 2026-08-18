@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fileToCompressedDataUrl } from "@/lib/offline";
+import NotificationBellMobile from "@/components/NotificationPanel";
 
 type MyJob = {
   id: number;
@@ -39,6 +40,24 @@ type HistoryLog = {
   completionMetadata: CompletionMetadata | null;
 };
 
+type IncidentPhoto = {
+  id: number;
+  url: string;
+  photoType: string;
+};
+
+type Incident = {
+  id: number;
+  area: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  reportedByName: string;
+  createdAt: string;
+  updatedAt: string;
+  photos: IncidentPhoto[];
+};
+
 const GARDENING_AREAS = [
   "Lawn", "Hedges", "Flower beds", "Walkways", "Trees", "Drainage areas", "Perimeter",
 ];
@@ -63,12 +82,14 @@ export default function JanitorApp({
   user: { id: number; name: string };
   today: string;
 }) {
-  const [tab, setTab] = useState<"jobs" | "history">("jobs");
+  const [tab, setTab] = useState<"jobs" | "issues" | "history">("jobs");
   const [scheduled, setScheduled] = useState<MyJob[]>([]);
   const [adhoc, setAdhoc] = useState<MyJob[]>([]);
   const [history, setHistory] = useState<HistoryLog[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,6 +123,16 @@ export default function JanitorApp({
       .then((d: { logs: HistoryLog[] }) => setHistory(d.logs))
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "issues") return;
+    setLoadingIncidents(true);
+    fetch("/api/janitor/incidents", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { incidents: [] }))
+      .then((d: { incidents: Incident[] }) => setIncidents(d.incidents))
+      .catch(() => {})
+      .finally(() => setLoadingIncidents(false));
   }, [tab]);
 
   useEffect(() => {
@@ -193,16 +224,19 @@ export default function JanitorApp({
               })}
             </p>
           </div>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            fetch("/api/auth/logout", { method: "POST" }).then(() => {
-              window.location.href = "/login";
-            });
-          }}>
-            <button className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300">
-              Sign out
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            <NotificationBellMobile />
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              fetch("/api/auth/logout", { method: "POST" }).then(() => {
+                window.location.href = "/login";
+              });
+            }}>
+              <button className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Stat label="To do" value={pendingJobs.length} tone="sky" />
@@ -212,7 +246,7 @@ export default function JanitorApp({
       </header>
 
       <nav className="z-10 flex gap-2 bg-slate-950/95 px-4 py-3">
-        {(["jobs", "history"] as const).map((t) => (
+        {(["jobs", "issues", "history"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -220,7 +254,7 @@ export default function JanitorApp({
               tab === t ? "bg-sky-500 text-white" : "bg-slate-900 text-slate-300"
             }`}
           >
-            {t === "jobs" ? "My Jobs" : "History"}
+            {t === "jobs" ? "My Jobs" : t === "issues" ? "Issues" : "History"}
           </button>
         ))}
       </nav>
@@ -278,6 +312,28 @@ export default function JanitorApp({
                 </section>
               )}
             </>
+          )
+        ) : tab === "issues" ? (
+          loadingIncidents ? (
+            <p className="py-16 text-center text-slate-500">Loading issues...</p>
+          ) : incidents.length === 0 ? (
+            <p className="py-16 text-center text-slate-500">
+              No issues assigned to you right now.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {incidents.map((inc) => (
+                <IncidentCard
+                  key={inc.id}
+                  incident={inc}
+                  onResolved={(id) => {
+                    setIncidents((prev) => prev.filter((i) => i.id !== id));
+                    setToast("Issue resolved");
+                  }}
+                  onError={setError}
+                />
+              ))}
+            </div>
           )
         ) : (
           <div className="space-y-3">
@@ -625,6 +681,196 @@ function JobCard({
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function IncidentCard({
+  incident,
+  onResolved,
+  onError,
+}: {
+  incident: Incident;
+  onResolved: (id: number) => void;
+  onError: (msg: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const beforePhoto = incident.photos.find((p) => p.photoType === "before");
+  const isCritical = incident.priority === "critical";
+
+  async function handleFile(files: FileList | null) {
+    if (!files?.length) return;
+    const dataUrl = await fileToCompressedDataUrl(files[0]);
+    setAfterPhoto(dataUrl);
+  }
+
+  async function submit() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/janitor/incidents/${incident.id}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notes || undefined,
+          afterPhoto: afterPhoto || undefined,
+        }),
+      });
+      if (res.ok) {
+        onResolved(incident.id);
+        setOpen(false);
+      } else {
+        const data = await res.json();
+        onError(data.error ?? "Failed to resolve");
+      }
+    } catch {
+      onError("Failed to resolve issue");
+    }
+    setBusy(false);
+  }
+
+  function close() {
+    setOpen(false);
+    setAfterPhoto(null);
+    setNotes("");
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full rounded-2xl border-2 border-amber-500/50 bg-slate-900 p-4 text-left active:scale-[0.99]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex items-center gap-3">
+            {beforePhoto && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={beforePhoto.url}
+                alt="Issue"
+                className="h-14 w-14 shrink-0 rounded-lg object-cover"
+              />
+            )}
+            <div>
+              <p className="font-semibold">{incident.area}</p>
+              {incident.description && (
+                <p className="truncate text-xs text-slate-400 max-w-[200px]">
+                  {incident.description}
+                </p>
+              )}
+              <p className="mt-1 text-[11px] text-slate-500">
+                Reported by {incident.reportedByName}
+                {isCritical && (
+                  <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-rose-300">
+                    critical
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white">
+            Fix
+          </span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-30 flex items-end bg-black/60" onClick={close}>
+          <div
+            className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-slate-900 p-5 pb-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-700" />
+            <h2 className="text-lg font-semibold">{incident.area}</h2>
+            {incident.description && (
+              <p className="text-sm text-slate-400">{incident.description}</p>
+            )}
+
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
+                Before Photo
+              </p>
+              {beforePhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={beforePhoto.url}
+                  alt="Before"
+                  className="w-full rounded-xl object-cover"
+                />
+              ) : (
+                <div className="flex h-32 items-center justify-center rounded-xl bg-slate-800 text-sm text-slate-500">
+                  No photo provided
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium">After Photo *</p>
+              <div className="flex flex-wrap gap-2">
+                {afterPhoto && (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={afterPhoto}
+                      alt="After"
+                      className="h-24 w-24 rounded-xl object-cover"
+                    />
+                    <button
+                      onClick={() => setAfterPhoto(null)}
+                      className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-rose-600 text-xs text-white"
+                    >
+                      x
+                    </button>
+                  </div>
+                )}
+                {!afterPhoto && (
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-600 text-xs text-slate-400"
+                  >
+                    <span className="text-2xl">+</span>
+                    After photo
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleFile(e.target.files)}
+              />
+            </div>
+
+            <label className="mt-5 block text-sm font-medium">
+              Resolution Notes
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Describe what was done..."
+                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-sm text-white placeholder:text-slate-500"
+              />
+            </label>
+
+            <button
+              onClick={submit}
+              disabled={busy || !afterPhoto}
+              className="mt-5 w-full rounded-2xl bg-emerald-500 py-4 text-base font-semibold text-white disabled:opacity-60"
+            >
+              {busy ? "Saving..." : "Mark Resolved"}
+            </button>
+            <button onClick={close} className="mt-4 w-full py-3 text-sm text-slate-400">
+              Close
+            </button>
           </div>
         </div>
       )}

@@ -319,6 +319,105 @@ export const consumableUsage = pgTable("consumable_usage", {
   index("consumable_usage_consumable_idx").on(t.consumableId),
 ]);
 
+export const incidentStatusEnum = pgEnum("incident_status", [
+  "open",
+  "assigned",
+  "in_progress",
+  "resolved",
+]);
+
+export const incidents = pgTable(
+  "incidents",
+  {
+    id: serial("id").primaryKey(),
+    facilityId: integer("facility_id")
+      .notNull()
+      .references(() => facilities.id),
+    reportedById: integer("reported_by_id")
+      .notNull()
+      .references(() => users.id),
+    assignedToId: integer("assigned_to_id").references(() => users.id),
+    area: text("area").notNull(),
+    description: text("description"),
+    status: incidentStatusEnum("status").notNull().default("open"),
+    priority: text("priority").notNull().default("standard"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionNotes: text("resolution_notes"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("incidents_facility_idx").on(t.facilityId),
+    index("incidents_status_idx").on(t.status),
+    index("incidents_assigned_idx").on(t.assignedToId),
+  ],
+);
+
+export const incidentPhotos = pgTable(
+  "incident_photos",
+  {
+    id: serial("id").primaryKey(),
+    incidentId: integer("incident_id")
+      .notNull()
+      .references(() => incidents.id),
+    uploadedBy: integer("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    photoType: text("photo_type").notNull().default("before"),
+    url: text("url").notNull(),
+    storageKey: text("storage_key").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("incident_photos_incident_idx").on(t.incidentId)],
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    entityType: text("entity_type"),
+    entityId: integer("entity_id"),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_idx").on(t.userId),
+    index("notifications_read_idx").on(t.read),
+  ],
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("push_subscriptions_endpoint_uq").on(t.endpoint)],
+);
+
 export type Facility = typeof facilities.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
@@ -330,3 +429,7 @@ export type TaskAssignment = typeof taskAssignments.$inferSelect;
 export type Consumable = typeof consumables.$inferSelect;
 export type ConsumableDelivery = typeof consumableDeliveries.$inferSelect;
 export type ConsumableUsage = typeof consumableUsage.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type Incident = typeof incidents.$inferSelect;
+export type IncidentPhoto = typeof incidentPhotos.$inferSelect;
