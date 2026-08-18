@@ -22,6 +22,12 @@ type MyJob = {
   dueHour: number | null;
 };
 
+type CompletionMetadata = {
+  areas?: string[];
+  workDone?: string[];
+  timeSpent?: number;
+};
+
 type HistoryLog = {
   id: number;
   completedAt: string;
@@ -30,7 +36,15 @@ type HistoryLog = {
   name: string;
   location: string | null;
   photoUrls: string[];
+  completionMetadata: CompletionMetadata | null;
 };
+
+const GARDENING_AREAS = [
+  "Lawn", "Hedges", "Flower beds", "Walkways", "Trees", "Drainage areas", "Perimeter",
+];
+const GARDENING_WORK = [
+  "Mowing", "Trimming", "Watering", "Pruning", "Weeding", "Fertilizing", "Debris removal",
+];
 
 function fmtTime(iso: string | null) {
   if (!iso) return "—";
@@ -96,7 +110,12 @@ export default function JanitorApp({
     return () => clearTimeout(t);
   }, [toast]);
 
-  async function completeScheduledJob(id: number, notes: string, photoDataUrl: string | null) {
+  async function completeScheduledJob(
+    id: number,
+    notes: string,
+    photoDataUrl: string | null,
+    completionMetadata?: { areas?: string[]; workDone?: string[]; timeSpent?: number } | null,
+  ) {
     try {
       const res = await fetch("/api/janitor/complete", {
         method: "POST",
@@ -106,6 +125,7 @@ export default function JanitorApp({
           notes: notes || undefined,
           photos: photoDataUrl ? [photoDataUrl] : [],
           completedAt: new Date().toISOString(),
+          completionMetadata: completionMetadata ?? null,
         }),
       });
       if (res.ok) {
@@ -126,7 +146,12 @@ export default function JanitorApp({
     }
   }
 
-  async function completeAdhocJob(id: number, notes: string, photoDataUrl: string | null) {
+  async function completeAdhocJob(
+    id: number,
+    notes: string,
+    photoDataUrl: string | null,
+    completionMetadata?: { areas?: string[]; workDone?: string[]; timeSpent?: number } | null,
+  ) {
     try {
       const res = await fetch(`/api/janitor/assigned/${id}/complete`, {
         method: "POST",
@@ -134,6 +159,7 @@ export default function JanitorApp({
         body: JSON.stringify({
           notes: notes || undefined,
           photos: photoDataUrl ? [photoDataUrl] : [],
+          completionMetadata: completionMetadata ?? null,
         }),
       });
       if (res.ok) {
@@ -267,6 +293,19 @@ export default function JanitorApp({
                     <p className="shrink-0 text-xs text-slate-400">{fmtTime(log.completedAt)}</p>
                   </div>
                   <p className="text-xs text-slate-400">{log.location}</p>
+                  {log.completionMetadata && (log.completionMetadata.areas?.length || log.completionMetadata.workDone?.length || log.completionMetadata.timeSpent) && (
+                    <p className="mt-2 rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300">
+                      {log.completionMetadata.areas && log.completionMetadata.areas.length > 0 && (
+                        <span><span className="font-medium text-slate-200">Areas:</span> {log.completionMetadata.areas.join(", ")}</span>
+                      )}
+                      {log.completionMetadata.workDone && log.completionMetadata.workDone.length > 0 && (
+                        <span className="block"><span className="font-medium text-slate-200">Work:</span> {log.completionMetadata.workDone.join(", ")}</span>
+                      )}
+                      {log.completionMetadata.timeSpent != null && (
+                        <span className="block"><span className="font-medium text-slate-200">Time:</span> {log.completionMetadata.timeSpent} min</span>
+                      )}
+                    </p>
+                  )}
                   {log.notes && <p className="mt-2 text-sm text-slate-300">&ldquo;{log.notes}&rdquo;</p>}
                   {log.photoUrls?.length > 0 && (
                     <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -322,13 +361,23 @@ function JobCard({
 }: {
   job: MyJob;
   today: string;
-  onComplete: (id: number, notes: string, photo: string | null) => Promise<void>;
+  onComplete: (
+    id: number,
+    notes: string,
+    photo: string | null,
+    completionMetadata?: { areas?: string[]; workDone?: string[]; timeSpent?: number } | null,
+  ) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isGardening = job.name.toLowerCase().includes("garden");
+  const [areas, setAreas] = useState<string[]>([]);
+  const [workDone, setWorkDone] = useState<string[]>([]);
+  const [timeSpent, setTimeSpent] = useState<number>(30);
 
   async function handleFile(files: FileList | null) {
     if (!files?.length) return;
@@ -338,17 +387,24 @@ function JobCard({
 
   async function submit() {
     setBusy(true);
-    await onComplete(job.id, notes, photo);
+    const metadata = isGardening ? { areas, workDone, timeSpent } : null;
+    await onComplete(job.id, notes, photo, metadata);
     setBusy(false);
     setOpen(false);
     setNotes("");
     setPhoto(null);
+    setAreas([]);
+    setWorkDone([]);
+    setTimeSpent(30);
   }
 
   function close() {
     setOpen(false);
     setNotes("");
     setPhoto(null);
+    setAreas([]);
+    setWorkDone([]);
+    setTimeSpent(30);
   }
 
   const isOverdue = job.dueDate && job.dueDate < today;
@@ -426,6 +482,79 @@ function JobCard({
                   What to do
                 </p>
                 {job.instructions}
+              </div>
+            )}
+
+            {isGardening && (
+              <div className="mt-5 space-y-5">
+                <div>
+                  <p className="mb-2 text-sm font-medium">Areas maintained</p>
+                  <div className="flex flex-wrap gap-2">
+                    {GARDENING_AREAS.map((area) => {
+                      const active = areas.includes(area);
+                      return (
+                        <button
+                          key={area}
+                          type="button"
+                          onClick={() =>
+                            setAreas((prev) =>
+                              active ? prev.filter((a) => a !== area) : [...prev, area],
+                            )
+                          }
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                            active
+                              ? "border-sky-500 bg-sky-500/20 text-sky-300"
+                              : "border-slate-700 bg-slate-800 text-slate-400"
+                          }`}
+                        >
+                          {area}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium">Work done</p>
+                  <div className="flex flex-wrap gap-2">
+                    {GARDENING_WORK.map((work) => {
+                      const active = workDone.includes(work);
+                      return (
+                        <button
+                          key={work}
+                          type="button"
+                          onClick={() =>
+                            setWorkDone((prev) =>
+                              active ? prev.filter((w) => w !== work) : [...prev, work],
+                            )
+                          }
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                            active
+                              ? "border-sky-500 bg-sky-500/20 text-sky-300"
+                              : "border-slate-700 bg-slate-800 text-slate-400"
+                          }`}
+                        >
+                          {work}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium">Time spent</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={480}
+                      value={timeSpent}
+                      onChange={(e) => setTimeSpent(Number(e.target.value) || 0)}
+                      className="w-24 rounded-xl border border-slate-700 bg-slate-800 p-3 text-sm text-white"
+                    />
+                    <span className="text-sm text-slate-400">minutes</span>
+                  </div>
+                </div>
               </div>
             )}
 

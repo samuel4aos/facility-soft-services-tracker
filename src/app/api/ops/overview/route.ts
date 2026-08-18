@@ -1,6 +1,6 @@
 import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { alerts, taskLogs, taskOccurrences, taskTemplates, users } from "@/db/schema";
+import { alerts, consumables, taskLogs, taskOccurrences, taskTemplates, users } from "@/db/schema";
 import { forbidden, getSession, unauthorized } from "@/lib/auth";
 import { addDays, todayISO } from "@/lib/dates";
 import { queryOccurrences } from "@/lib/opsQueries";
@@ -148,6 +148,25 @@ export async function GET() {
     .groupBy(users.id, users.name)
     .orderBy(sql`count(*) filter (where ${taskLogs.id} is not null) desc`);
 
+  const lowStockConsumables = await db
+    .select({
+      id: consumables.id,
+      name: consumables.name,
+      currentStock: consumables.currentStock,
+      minStock: consumables.minStock,
+      unit: consumables.unit,
+      location: consumables.location,
+    })
+    .from(consumables)
+    .where(
+      and(
+        eq(consumables.active, true),
+        lte(consumables.currentStock, consumables.minStock),
+        facilityId ? eq(consumables.facilityId, facilityId) : undefined,
+      ),
+    )
+    .orderBy(consumables.currentStock);
+
   return Response.json({
     today,
     todayStats: { ...todayStats, missed: missedStats?.missed ?? 0 },
@@ -165,5 +184,6 @@ export async function GET() {
       completed: j.completed,
       rate: j.total ? Math.round((j.completed / j.total) * 100) : 0,
     })),
+    lowStockConsumables,
   });
 }

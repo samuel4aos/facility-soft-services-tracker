@@ -175,6 +175,13 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }> {
         phone: "08010000005",
         pinHash: hashSecret("1234"),
       },
+      {
+        facilityId: facility.id,
+        name: "Tunde Adewale",
+        role: "janitor",
+        phone: "08010000006",
+        pinHash: hashSecret("1234"),
+      },
     ])
     .returning();
 

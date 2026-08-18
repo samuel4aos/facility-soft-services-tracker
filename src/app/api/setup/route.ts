@@ -12,6 +12,7 @@ const DEFAULT_TEAM = [
   { name: "Okon Paul", role: "janitor" as const, phone: "08010000003" },
   { name: "Andrew Suleiman", role: "janitor" as const, phone: "08010000004" },
   { name: "Chigozie Precious", role: "janitor" as const, phone: "08010000005" },
+  { name: "Tunde Adewale", role: "janitor" as const, phone: "08010000006" },
 ];
 
 export async function GET() {

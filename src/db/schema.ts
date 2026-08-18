@@ -144,6 +144,7 @@ export const taskLogs = pgTable(
       .notNull()
       .default("pending"),
     clientLogId: text("client_log_id"),
+    completionMetadata: jsonb("completion_metadata"),
     syncedOffline: boolean("synced_offline").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -273,6 +274,51 @@ export const customTaskPhotos = pgTable("custom_task_photos", {
     .defaultNow(),
 });
 
+export const consumables = pgTable("consumables", {
+  id: serial("id").primaryKey(),
+  facilityId: integer("facility_id").notNull().references(() => facilities.id),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("general"),
+  unit: text("unit").notNull().default("pcs"),
+  currentStock: integer("current_stock").notNull().default(0),
+  minStock: integer("min_stock").notNull().default(10),
+  maxStock: integer("max_stock").notNull().default(100),
+  unitCost: doublePrecision("unit_cost"),
+  location: text("location"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("consumables_facility_idx").on(t.facilityId),
+]);
+
+export const consumableDeliveries = pgTable("consumable_deliveries", {
+  id: serial("id").primaryKey(),
+  consumableId: integer("consumable_id").notNull().references(() => consumables.id),
+  receivedById: integer("received_by_id").notNull().references(() => users.id),
+  quantity: integer("quantity").notNull(),
+  supplier: text("supplier"),
+  waybillNumber: text("waybill_number"),
+  notes: text("notes"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("consumable_deliveries_consumable_idx").on(t.consumableId),
+]);
+
+export const consumableUsage = pgTable("consumable_usage", {
+  id: serial("id").primaryKey(),
+  consumableId: integer("consumable_id").notNull().references(() => consumables.id),
+  usedById: integer("used_by_id").notNull().references(() => users.id),
+  quantity: integer("quantity").notNull(),
+  area: text("area"),
+  notes: text("notes"),
+  usedAt: timestamp("used_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("consumable_usage_consumable_idx").on(t.consumableId),
+]);
+
 export type Facility = typeof facilities.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
@@ -281,3 +327,6 @@ export type TaskLog = typeof taskLogs.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type CustomTask = typeof customTasks.$inferSelect;
 export type TaskAssignment = typeof taskAssignments.$inferSelect;
+export type Consumable = typeof consumables.$inferSelect;
+export type ConsumableDelivery = typeof consumableDeliveries.$inferSelect;
+export type ConsumableUsage = typeof consumableUsage.$inferSelect;

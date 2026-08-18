@@ -21,6 +21,7 @@ export async function GET(request: Request) {
       notes: taskLogs.notes,
       statusAtLogTime: taskLogs.statusAtLogTime,
       dueDate: taskOccurrences.dueDate,
+      completionMetadata: taskLogs.completionMetadata,
       name: taskTemplates.name,
       location: taskTemplates.location,
       photoUrls: sql<string[]>`coalesce(array_agg(${photos.url}) filter (where ${photos.url} is not null), '{}')`,

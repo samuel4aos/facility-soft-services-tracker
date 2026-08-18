@@ -27,6 +27,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               { href: "/dashboard/logs", label: "Logs" },
               { href: "/dashboard/templates", label: "Schedules" },
               { href: "/dashboard/users", label: "Users" },
+              { href: "/dashboard/consumables", label: "Consumables" },
               ...(isSuperAdmin ? [{ href: "/dashboard/facilities", label: "Facilities" }] : []),
               { href: "/dashboard/audit", label: "Audit" },
               { href: "/dashboard/settings", label: "Settings" },

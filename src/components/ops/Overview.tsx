@@ -28,6 +28,7 @@ type Overview = {
     location: string | null;
   }[];
   janitorStats: { id: number; name: string; total: number; completed: number; rate: number }[];
+  lowStockConsumables: { id: number; name: string; currentStock: number; minStock: number; unit: string; location: string | null }[];
 };
 
 function daysAgo(from: string, today: string) {
@@ -214,6 +215,40 @@ export default function OverviewClient() {
                 </div>
                 <span className="w-28 shrink-0 text-right text-xs text-slate-500">
                   {j.completed}/{j.total} · {j.rate}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {data.lowStockConsumables && data.lowStockConsumables.length > 0 && (
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+          <h2 className="font-semibold text-rose-800">
+            Low stock consumables ({data.lowStockConsumables.length})
+          </h2>
+          <p className="text-xs text-rose-600">
+            Items at or below minimum stock level —{" "}
+            <a href="/dashboard/consumables" className="underline">
+              view all
+            </a>
+          </p>
+          <div className="mt-3 divide-y divide-rose-100">
+            {data.lowStockConsumables.slice(0, 8).map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between py-2 text-sm"
+              >
+                <div>
+                  <span className="font-medium text-rose-800">{c.name}</span>
+                  {c.location && (
+                    <span className="ml-2 text-xs text-rose-500">
+                      {c.location}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-medium text-rose-700">
+                  {c.currentStock}/{c.minStock} {c.unit}
                 </span>
               </div>
             ))}

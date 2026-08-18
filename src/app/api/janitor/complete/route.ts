@@ -23,6 +23,11 @@ type Body = {
   clientLogId?: string;
   photos?: string[];
   completedAt?: string;
+  completionMetadata?: {
+    areas?: string[];
+    workDone?: string[];
+    timeSpent?: number;
+  } | null;
 };
 
 export async function POST(request: Request) {
@@ -96,6 +101,7 @@ export async function POST(request: Request) {
       gpsLat: body.gpsLat ?? null,
       gpsLng: body.gpsLng ?? null,
       statusAtLogTime,
+      completionMetadata: body.completionMetadata ?? null,
       clientLogId: body.clientLogId ?? null,
       syncedOffline: !!body.completedAt,
       completedAt: body.completedAt ? new Date(body.completedAt) : new Date(),
