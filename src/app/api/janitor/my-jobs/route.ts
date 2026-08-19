@@ -8,7 +8,7 @@ import {
   taskTemplates,
 } from "@/db/schema";
 import { getSession, unauthorized } from "@/lib/auth";
-import { todayISO } from "@/lib/dates";
+import { currentHour, todayISO } from "@/lib/dates";
 import { ensureFresh } from "@/lib/scheduler";
 
 export const runtime = "nodejs";
@@ -21,6 +21,7 @@ export async function GET() {
 
   const facilityId = session.facilityId;
   const date = todayISO();
+  const hour = currentHour();
 
   // 1. Scheduled occurrences where this janitor is assigned via template
   const scheduledRows = await db
@@ -62,9 +63,16 @@ export async function GET() {
         isNull(taskTemplates.deletedAt),
         eq(taskOccurrences.status, "pending"),
         sql`${taskOccurrences.dueDate} = ${date}::date`,
+        // Hourly tasks surface progressively: the current hour's slot is
+        // prompted when its hour arrives, and any earlier pending slot stays
+        // visible so nothing is silently lost. Future hours are hidden.
+        or(
+          isNull(taskOccurrences.dueHour),
+          sql`${taskOccurrences.dueHour} <= ${hour}`,
+        ),
       ),
     )
-    .orderBy(taskOccurrences.dueDate);
+    .orderBy(taskOccurrences.dueDate, taskOccurrences.dueHour);
 
   // 2. Custom ad-hoc tasks assigned to this janitor
   const customRows = await db

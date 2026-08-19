@@ -158,6 +158,20 @@ export default function JanitorApp({
     loadJobs();
   }, [loadJobs]);
 
+  // Auto-refresh jobs every minute so hourly tasks surface as each hour
+  // rolls over, and when the tab regains focus.
+  useEffect(() => {
+    const id = setInterval(loadJobs, 60_000);
+    const onFocus = () => loadJobs();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [loadJobs]);
+
   useEffect(() => {
     if (tab !== "history") return;
     setLoadingHistory(true);

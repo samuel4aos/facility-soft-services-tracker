@@ -72,6 +72,16 @@ export function todayISO(timezone = "Africa/Lagos"): ISODate {
   return fmt.format(new Date());
 }
 
+/** Current hour (0-23) in the facility timezone. */
+export function currentHour(timezone = "Africa/Lagos"): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    hour12: false,
+  });
+  return Number(fmt.format(new Date()).replace(/^24/, "00"));
+}
+
 export const WEEKDAY_NAMES = [
   "Sunday",
   "Monday",

@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       facilityId: taskOccurrences.facilityId,
       requiresPhoto: taskTemplates.requiresPhoto,
       assignedUserId: taskTemplates.assignedUserId,
+      assignedUserIds: taskTemplates.assignedUserIds,
       name: taskTemplates.name,
     })
     .from(taskOccurrences)
@@ -67,12 +68,14 @@ export async function POST(request: Request) {
 
   if (!occurrence) return Response.json({ error: "Task not found" }, { status: 404 });
 
-  if (
-    session.role === "janitor" &&
-    (occurrence.facilityId !== session.facilityId ||
-      (occurrence.assignedUserId !== null && occurrence.assignedUserId !== session.id))
-  ) {
-    return Response.json({ error: "Not your task" }, { status: 403 });
+  if (session.role === "janitor") {
+    const isAssigned =
+      occurrence.assignedUserId === session.id ||
+      (Array.isArray(occurrence.assignedUserIds) &&
+        occurrence.assignedUserIds.includes(session.id));
+    if (occurrence.facilityId !== session.facilityId || !isAssigned) {
+      return Response.json({ error: "Not your task" }, { status: 403 });
+    }
   }
 
   const [existing] = await db

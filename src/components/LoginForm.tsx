@@ -62,7 +62,8 @@ export default function LoginForm({ initialMode }: { initialMode: "pin" | "passw
     }
 
     const data = (await res.json()) as { user: { role: string } };
-    window.location.href = data.user.role === "janitor" ? "/app" : "/dashboard";
+    window.location.href =
+      data.user.role === "janitor" || data.user.role === "gardener" ? "/app" : "/dashboard";
   }
 
   function press(d: string) {
@@ -92,7 +93,8 @@ export default function LoginForm({ initialMode }: { initialMode: "pin" | "passw
       return;
     }
     const data = (await res.json()) as { user: { role: string } };
-    window.location.href = data.user.role === "janitor" ? "/app" : "/dashboard";
+    window.location.href =
+      data.user.role === "janitor" || data.user.role === "gardener" ? "/app" : "/dashboard";
   }
 
   return (

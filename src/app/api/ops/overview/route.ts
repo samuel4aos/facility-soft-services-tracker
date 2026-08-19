@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, consumables, taskLogs, taskOccurrences, taskTemplates, users } from "@/db/schema";
 import { forbidden, getSession, unauthorized } from "@/lib/auth";
@@ -122,31 +122,70 @@ export async function GET() {
     limit: 300,
   });
 
-  const janitorStats = await db
-    .select({
-      janitorId: users.id,
-      janitorName: users.name,
-      total: sql<number>`count(*)::int`,
-      completed: sql<number>`count(*) filter (where ${taskLogs.id} is not null)::int`,
+  const janitors = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(and(eq(users.role, "janitor")));
+
+  const janitorIds = janitors.map((u) => u.id);
+  const assignedRows =
+    janitorIds.length > 0
+      ? await db
+          .select({
+            janitorId: taskTemplates.assignedUserId,
+            count: sql<number>`count(distinct ${taskOccurrences.id})::int`,
+          })
+          .from(taskOccurrences)
+          .innerJoin(taskTemplates, eq(taskTemplates.id, taskOccurrences.taskTemplateId))
+          .where(
+            and(
+              facilityId ? eq(taskOccurrences.facilityId, facilityId) : undefined,
+              eq(taskTemplates.active, true),
+              isNull(taskTemplates.deletedAt),
+              gte(taskOccurrences.dueDate, addDays(today, -30)),
+              lte(taskOccurrences.dueDate, today),
+              inArray(taskTemplates.assignedUserId, janitorIds),
+            ),
+          )
+          .groupBy(taskTemplates.assignedUserId)
+      : [];
+
+  const completedRows =
+    janitorIds.length > 0
+      ? await db
+          .select({
+            janitorId: taskLogs.janitorId,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(taskLogs)
+          .innerJoin(taskOccurrences, eq(taskOccurrences.id, taskLogs.taskOccurrenceId))
+          .where(
+            and(
+              facilityId ? eq(taskOccurrences.facilityId, facilityId) : undefined,
+              isNull(taskLogs.deletedAt),
+              gte(taskOccurrences.dueDate, addDays(today, -30)),
+              lte(taskOccurrences.dueDate, today),
+              inArray(taskLogs.janitorId, janitorIds),
+            ),
+          )
+          .groupBy(taskLogs.janitorId)
+      : [];
+
+  const completedMap = new Map(completedRows.map((r) => [r.janitorId, r.count]));
+  const janitorStats = janitors
+    .map((u) => {
+      const total = assignedRows.find((r) => r.janitorId === u.id)?.count ?? 0;
+      const completed = completedMap.get(u.id) ?? 0;
+      return {
+        id: u.id,
+        name: u.name,
+        total,
+        completed,
+        rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      };
     })
-    .from(taskOccurrences)
-    .innerJoin(taskTemplates, eq(taskTemplates.id, taskOccurrences.taskTemplateId))
-    .leftJoin(
-      taskLogs,
-      and(eq(taskLogs.taskOccurrenceId, taskOccurrences.id), isNull(taskLogs.deletedAt)),
-    )
-    .innerJoin(users, eq(users.id, taskTemplates.assignedUserId))
-    .where(
-      and(
-        facilityId ? eq(taskOccurrences.facilityId, facilityId) : undefined,
-        eq(taskTemplates.active, true),
-        isNull(taskTemplates.deletedAt),
-        gte(taskOccurrences.dueDate, addDays(today, -30)),
-        lte(taskOccurrences.dueDate, today),
-      ),
-    )
-    .groupBy(users.id, users.name)
-    .orderBy(sql`count(*) filter (where ${taskLogs.id} is not null) desc`);
+    .filter((s) => s.total > 0 || s.completed > 0)
+    .sort((a, b) => b.rate - a.rate);
 
   const lowStockConsumables = await db
     .select({
@@ -177,13 +216,7 @@ export async function GET() {
       ["monthly", "quarterly", "biannual", "biweekly"].includes(u.recurrenceType),
     ),
     attention: attention.filter((a) => a.status === "missed" || a.status === "overdue"),
-    janitorStats: janitorStats.map((j) => ({
-      id: j.janitorId,
-      name: j.janitorName,
-      total: j.total,
-      completed: j.completed,
-      rate: j.total ? Math.round((j.completed / j.total) * 100) : 0,
-    })),
+    janitorStats,
     lowStockConsumables,
   });
 }
