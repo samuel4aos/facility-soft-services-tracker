@@ -31,8 +31,8 @@ export async function PATCH(
   const updates: Record<string, unknown> = {};
 
   if (body.name !== undefined) updates.name = String(body.name).trim();
-  if (body.phone !== undefined) updates.phone = String(body.phone).trim() || null;
-  if (body.email !== undefined) updates.email = String(body.email).trim().toLowerCase() || null;
+   if (body.phone !== undefined) updates.phone = body.phone ? String(body.phone).trim() : null;
+   if (body.email !== undefined) updates.email = body.email ? String(body.email).trim().toLowerCase() : null;
   if (body.active !== undefined) updates.active = Boolean(body.active);
   if (body.facilityId !== undefined) {
     if (session.role === "super_admin") {
