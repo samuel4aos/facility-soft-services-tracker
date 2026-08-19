@@ -80,7 +80,6 @@ export const taskTemplates = pgTable(
       .references(() => facilities.id),
     name: text("name").notNull(),
     location: text("location"),
-    category: text("category").notNull().default("soft_service"),
     areaGroup: text("area_group"),
     sortOrder: integer("sort_order").notNull().default(0),
     timingType: text("timing_type"),
@@ -89,7 +88,9 @@ export const taskTemplates = pgTable(
     requiresPhoto: boolean("requires_photo").notNull().default(true),
     instructions: text("instructions"),
     criticality: criticalityEnum("criticality").notNull().default("standard"),
-    assignedUserId: integer("assigned_user_id").references(() => users.id),
+    assignedUserId: integer("assignedUserId").references(() => users.id),
+    assignedUserIds: jsonb("assignedUserIds"),
+    maxAssignees: integer("maxAssignees").notNull().default(1),
     active: boolean("active").notNull().default(true),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

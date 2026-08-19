@@ -58,7 +58,7 @@ export async function GET() {
         eq(taskTemplates.active, true),
         isNull(taskTemplates.deletedAt),
         eq(taskOccurrences.status, "pending"),
-        sql`${taskOccurrences.dueDate} <= (${date}::date + interval '3 days')`,
+        sql`${taskOccurrences.dueDate} = ${date}::date`,
       ),
     )
     .orderBy(taskOccurrences.dueDate);
@@ -91,6 +91,7 @@ export async function GET() {
         eq(taskAssignments.userId, session.id),
         isNull(customTasks.deletedAt),
         eq(customTasks.status, "pending"),
+        sql`${customTasks.dueDate} = ${date}::date`,
       ),
     )
     .orderBy(customTasks.dueDate);
