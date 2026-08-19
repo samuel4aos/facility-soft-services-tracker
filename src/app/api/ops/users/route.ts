@@ -42,11 +42,11 @@ export async function POST(request: Request) {
   const role = String(body.role ?? "janitor");
 
   if (!name) return Response.json({ error: "Name is required" }, { status: 400 });
-  if (!["janitor", "ops_admin", "super_admin"].includes(role)) {
+  if (!["janitor", "gardener", "ops_admin", "super_admin"].includes(role)) {
     return Response.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  if (role === "super_admin" && session.role !== "super_admin") {
+  if (["super_admin"].includes(role) && session.role !== "super_admin") {
     return forbidden();
   }
 
@@ -57,8 +57,8 @@ export async function POST(request: Request) {
   const pin = String(body.pin ?? "").trim();
   const password = String(body.password ?? "").trim();
 
-  if (role === "janitor" && !pin) {
-    return Response.json({ error: "PIN is required for janitors" }, { status: 400 });
+  if (["janitor", "gardener"].includes(role) && !pin) {
+    return Response.json({ error: "PIN is required for janitors and gardeners" }, { status: 400 });
   }
   if (["ops_admin", "super_admin"].includes(role) && !password) {
     return Response.json({ error: "Password is required for ops/super admins" }, { status: 400 });
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     .values({
       facilityId,
       name,
-      role: role as "janitor" | "ops_admin" | "super_admin",
+      role: role as "janitor" | "gardener" | "ops_admin" | "super_admin",
       phone,
       email,
       pinHash: pin ? hashSecret(pin) : null,

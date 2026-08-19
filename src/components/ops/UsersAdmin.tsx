@@ -39,6 +39,7 @@ const EMPTY: FormState = {
 
 const ROLES = [
   ["janitor", "Janitor"],
+  ["gardener", "Gardener"],
   ["ops_admin", "Ops Admin"],
   ["super_admin", "Super Admin"],
 ] as const;
@@ -188,7 +189,9 @@ export default function UsersAdmin() {
                       ? "bg-violet-100 text-violet-700"
                       : u.role === "ops_admin"
                         ? "bg-sky-100 text-sky-700"
-                        : "bg-slate-100 text-slate-600"
+                        : u.role === "gardener"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-600"
                   }`}>
                     {u.role.replace("_", " ")}
                   </span>
@@ -208,12 +211,11 @@ export default function UsersAdmin() {
                   <button onClick={() => editUser(u)} className="text-sky-600 hover:underline">
                     Edit
                   </button>
-                  {u.role === "janitor" && (
+                  {u.role === "janitor" || u.role === "gardener" ? (
                     <button onClick={() => resetPin(u.id)} className="ml-2 text-amber-600 hover:underline">
                       Reset PIN
                     </button>
-                  )}
-                  {u.role !== "janitor" && (
+                  ) : (
                     <button onClick={() => resetPassword(u.id)} className="ml-2 text-amber-600 hover:underline">
                       Reset Pwd
                     </button>
@@ -250,7 +252,7 @@ export default function UsersAdmin() {
                 ))}
               </select>
             </L>
-            {form.role === "janitor" ? (
+            {form.role === "janitor" || form.role === "gardener" ? (
               <L label="Phone number">
                 <input className="input w-full" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 08012345678" />
               </L>

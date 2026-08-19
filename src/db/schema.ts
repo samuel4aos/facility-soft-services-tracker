@@ -15,6 +15,7 @@ import {
 
 export const userRoleEnum = pgEnum("user_role", [
   "janitor",
+  "gardener",
   "ops_admin",
   "super_admin",
 ]);
@@ -88,9 +89,9 @@ export const taskTemplates = pgTable(
     requiresPhoto: boolean("requires_photo").notNull().default(true),
     instructions: text("instructions"),
     criticality: criticalityEnum("criticality").notNull().default("standard"),
-    assignedUserId: integer("assignedUserId").references(() => users.id),
-    assignedUserIds: jsonb("assignedUserIds"),
-    maxAssignees: integer("maxAssignees").notNull().default(1),
+    assignedUserId: integer("assigned_user_id").references(() => users.id),
+    assignedUserIds: jsonb("assigned_user_ids"),
+    maxAssignees: integer("max_assignees").notNull().default(1),
     active: boolean("active").notNull().default(true),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

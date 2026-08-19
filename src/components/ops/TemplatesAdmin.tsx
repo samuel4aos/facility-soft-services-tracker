@@ -14,6 +14,8 @@ type Template = {
   active: boolean;
   assignedUserId: number | null;
   assignedName: string | null;
+  assignedUserIds: number[];
+  maxAssignees: number;
   summary: string;
   nextDue: string | null;
   areaGroup: string | null;
@@ -80,6 +82,8 @@ type FormState = {
   criticality: string;
   instructions: string;
   assignedUserId: string;
+  assignedUserIds: number[];
+  maxAssignees: number;
   active: boolean;
   weekday: number;
   weekdays: number[];
@@ -105,6 +109,8 @@ const EMPTY: FormState = {
   criticality: "standard",
   instructions: "",
   assignedUserId: "",
+  assignedUserIds: [],
+  maxAssignees: 3,
   active: true,
   weekday: 1,
   weekdays: [2, 5],
@@ -150,7 +156,7 @@ export default function TemplatesAdmin() {
     load();
     fetch("/api/ops/users")
       .then((r) => r.json())
-      .then((d: { users: UserRow[] }) => setUsers((d.users ?? []).filter((u) => u.role === "janitor")))
+      .then((d: { users: UserRow[] }) => setUsers((d.users ?? []).filter((u) => u.role === "janitor" || u.role === "gardener")))
       .catch(() => {});
   }, [load]);
 
@@ -166,6 +172,8 @@ export default function TemplatesAdmin() {
       criticality: t.criticality,
       instructions: t.instructions ?? "",
       assignedUserId: t.assignedUserId ? String(t.assignedUserId) : "",
+      assignedUserIds: t.assignedUserIds ?? [],
+      maxAssignees: t.maxAssignees ?? 3,
       active: t.active,
       weekday: Number(cfg.weekday ?? 1),
       weekdays: (cfg.weekdays as number[]) ?? [2, 5],
@@ -196,6 +204,8 @@ export default function TemplatesAdmin() {
       criticality: form.criticality,
       instructions: form.instructions,
       assignedUserId: form.assignedUserId || null,
+      assignedUserIds: form.assignedUserIds.length > 0 ? form.assignedUserIds : form.assignedUserId ? [Number(form.assignedUserId)] : [],
+      maxAssignees: form.maxAssignees,
       active: form.active,
       areaGroup: form.areaGroup || null,
       timingType: form.timingType || null,
@@ -531,19 +541,53 @@ export default function TemplatesAdmin() {
               </L>
             )}
 
-            <L label="Assigned janitor">
-              <select
+            <L label="Assigned janitors (select multiple)">
+              <div className="flex flex-col gap-1 max-h-40 overflow-y-auto rounded-lg border border-slate-300 bg-slate-50 p-2">
+                {users.length === 0 && (
+                  <p className="text-xs text-slate-500">No janitors found.</p>
+                )}
+                {users.map((u) => {
+                  const checked = form.assignedUserIds.includes(u.id);
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...form.assignedUserIds, u.id]
+                            : form.assignedUserIds.filter((id) => id !== u.id);
+                          setForm({
+                            ...form,
+                            assignedUserIds: next,
+                            assignedUserId: next.length > 0 ? String(u.id) : "",
+                          });
+                        }}
+                      />
+                      <span>
+                        {u.name}
+                        {u.role === "gardener" && <span className="ml-1 text-xs text-emerald-600">(gardener)</span>}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {form.assignedUserIds.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {form.assignedUserIds.length} janitor(s) assigned
+                </p>
+              )}
+            </L>
+
+            <L label="Max assignees (how many can do this task)">
+              <input
+                type="number"
+                min={1}
+                max={10}
                 className="input w-full"
-                value={form.assignedUserId}
-                onChange={(e) => setForm({ ...form, assignedUserId: e.target.value })}
-              >
-                <option value="">Any janitor at facility</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+                value={form.maxAssignees}
+                onChange={(e) => setForm({ ...form, maxAssignees: Number(e.target.value) || 1 })}
+              />
             </L>
             <L label="Instructions / checklist">
               <textarea

@@ -8,7 +8,7 @@ const SECRET =
   process.env.JWT_SECRET ?? "dev-secret-soft-services-tracker-change-me";
 export const SESSION_COOKIE = "sst_session";
 
-export type Role = "janitor" | "ops_admin" | "super_admin";
+export type Role = "janitor" | "gardener" | "ops_admin" | "super_admin";
 
 export type SessionUser = {
   id: number;

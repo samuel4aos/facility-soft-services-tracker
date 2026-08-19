@@ -73,8 +73,19 @@ export async function PATCH(
         body.assignedUserId !== undefined
           ? body.assignedUserId
             ? Number(body.assignedUserId)
-            : null
+          : null
           : existing.assignedUserId,
+      assignedUserIds: Array.isArray(body.assignedUserIds)
+        ? body.assignedUserIds
+        : body.assignedUserId !== undefined
+          ? body.assignedUserId
+            ? [Number(body.assignedUserId)]
+          : existing.assignedUserIds ?? []
+          : existing.assignedUserIds,
+      maxAssignees:
+        body.maxAssignees !== undefined
+          ? Number(body.maxAssignees)
+          : existing.maxAssignees ?? 3,
       active: body.active !== undefined ? Boolean(body.active) : existing.active,
       areaGroup:
         body.areaGroup !== undefined

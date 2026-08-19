@@ -19,6 +19,7 @@ export async function GET(request: Request) {
 
   const mine = or(
     eq(taskTemplates.assignedUserId, session.id),
+    sql`${taskTemplates.assignedUserIds} ? ${session.id}::text`,
     isNull(taskTemplates.assignedUserId),
   );
 

@@ -105,7 +105,7 @@ export default function SettingsClient() {
     return <p className="text-slate-500">Loading profile…</p>;
   }
 
-  const isJanitor = profile.role === "janitor";
+  const isJanitorOrGardener = profile.role === "janitor" || profile.role === "gardener";
 
   return (
     <div className="space-y-6 max-w-xl">
@@ -119,7 +119,7 @@ export default function SettingsClient() {
           <L label="Name">
             <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} />
           </L>
-          {isJanitor ? (
+          {isJanitorOrGardener ? (
             <L label="Phone">
               <input className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </L>
@@ -134,7 +134,7 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      {isJanitor ? (
+      {isJanitorOrGardener ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-semibold text-slate-900">Change PIN</h2>
           <div className="mt-4 space-y-3">

@@ -40,7 +40,7 @@ export default function LoginForm({ initialMode }: { initialMode: "pin" | "passw
       return;
     }
 
-    window.location.href = data.user!.role === "janitor" ? "/app" : "/dashboard";
+    window.location.href = data.user!.role === "janitor" || data.user!.role === "gardener" ? "/app" : "/dashboard";
   }
 
   async function pickUser(userId: number) {

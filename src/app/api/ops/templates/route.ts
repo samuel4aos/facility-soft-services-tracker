@@ -34,6 +34,8 @@ export async function GET() {
       active: taskTemplates.active,
       assignedUserId: taskTemplates.assignedUserId,
       assignedName: users.name,
+      assignedUserIds: taskTemplates.assignedUserIds,
+      maxAssignees: taskTemplates.maxAssignees,
       facilityId: taskTemplates.facilityId,
       areaGroup: taskTemplates.areaGroup,
       sortOrder: taskTemplates.sortOrder,
@@ -103,6 +105,12 @@ export async function POST(request: Request) {
       instructions: (body.instructions as string) || null,
       criticality: body.criticality === "critical" ? "critical" : "standard",
       assignedUserId: body.assignedUserId ? Number(body.assignedUserId) : null,
+      assignedUserIds: Array.isArray(body.assignedUserIds)
+        ? body.assignedUserIds
+        : body.assignedUserId
+          ? [Number(body.assignedUserId)]
+          : [],
+      maxAssignees: body.maxAssignees ? Number(body.maxAssignees) : 3,
       active: body.active !== false,
       areaGroup: (body.areaGroup as string) || null,
       timingType: (body.timingType as string) || null,

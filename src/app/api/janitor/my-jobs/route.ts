@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   customTasks,
@@ -53,7 +53,10 @@ export async function GET() {
     )
     .where(
       and(
-        eq(taskTemplates.assignedUserId, session.id),
+        or(
+          eq(taskTemplates.assignedUserId, session.id),
+          sql`${taskTemplates.assignedUserIds} ? ${session.id}::text`,
+        ),
         eq(taskTemplates.facilityId, facilityId ?? -1),
         eq(taskTemplates.active, true),
         isNull(taskTemplates.deletedAt),
