@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   const mine = or(
     eq(taskTemplates.assignedUserId, session.id),
-    sql`${taskTemplates.assignedUserIds} ? ${session.id}::text`,
+    sql`jsonb_exists(${taskTemplates.assignedUserIds}, ${`$ ? (@ == ${session.id})`})`,
     isNull(taskTemplates.assignedUserId),
   );
 

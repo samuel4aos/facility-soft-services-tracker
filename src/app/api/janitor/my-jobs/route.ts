@@ -55,7 +55,7 @@ export async function GET() {
       and(
         or(
           eq(taskTemplates.assignedUserId, session.id),
-          sql`${taskTemplates.assignedUserIds} ? ${session.id}::text`,
+          sql`jsonb_exists(${taskTemplates.assignedUserIds}, ${`$ ? (@ == ${session.id})`})`,
         ),
         eq(taskTemplates.facilityId, facilityId ?? -1),
         eq(taskTemplates.active, true),
