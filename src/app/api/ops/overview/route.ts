@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { alerts, consumables, taskLogs, taskOccurrences, taskTemplates, users } from "@/db/schema";
 import { forbidden, getSession, unauthorized } from "@/lib/auth";
@@ -32,6 +32,7 @@ export async function GET() {
     .where(
       and(
         facilityCond,
+        ne(taskOccurrences.status, "cancelled"),
         lte(taskOccurrences.windowStart, today),
         gte(taskOccurrences.windowEnd, today),
       ),
@@ -58,6 +59,7 @@ export async function GET() {
     .where(
       and(
         facilityCond,
+        ne(taskOccurrences.status, "cancelled"),
         gte(taskOccurrences.dueDate, addDays(today, -77)),
         lte(taskOccurrences.dueDate, today),
       ),
@@ -80,6 +82,7 @@ export async function GET() {
       and(
         facilityCond,
         isNull(taskTemplates.deletedAt),
+        ne(taskOccurrences.status, "cancelled"),
         gte(taskOccurrences.dueDate, addDays(today, -30)),
         lte(taskOccurrences.dueDate, today),
       ),
@@ -142,6 +145,7 @@ export async function GET() {
               facilityId ? eq(taskOccurrences.facilityId, facilityId) : undefined,
               eq(taskTemplates.active, true),
               isNull(taskTemplates.deletedAt),
+              ne(taskOccurrences.status, "cancelled"),
               gte(taskOccurrences.dueDate, addDays(today, -30)),
               lte(taskOccurrences.dueDate, today),
               inArray(taskTemplates.assignedUserId, janitorIds),

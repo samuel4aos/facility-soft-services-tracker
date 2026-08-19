@@ -36,6 +36,7 @@ export const occurrenceStatusEnum = pgEnum("occurrence_status", [
   "completed",
   "overdue",
   "missed",
+  "cancelled",
 ]);
 
 export const criticalityEnum = pgEnum("criticality", ["standard", "critical"]);

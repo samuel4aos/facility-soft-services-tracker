@@ -7,7 +7,7 @@ export type OccurrenceRow = {
   dueDate: string;
   windowStart: string;
   windowEnd: string;
-  status: "pending" | "completed" | "overdue" | "missed";
+  status: "pending" | "completed" | "overdue" | "missed" | "cancelled";
   templateId: number;
   name: string;
   location: string | null;

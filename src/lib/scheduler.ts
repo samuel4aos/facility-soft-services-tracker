@@ -120,6 +120,7 @@ export async function refreshStatuses(): Promise<number> {
     WITH computed AS (
       SELECT o.id,
              CASE
+               WHEN o.status = 'cancelled' THEN 'cancelled'
                WHEN l.id IS NOT NULL THEN 'completed'
                WHEN ${today}::date > o.window_end THEN 'missed'
                WHEN ${today}::date > o.due_date THEN 'overdue'
