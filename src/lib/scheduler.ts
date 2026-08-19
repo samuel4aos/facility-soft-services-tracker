@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   alerts,
@@ -46,6 +46,52 @@ export async function materializeOccurrences(
       rangeEnd,
     );
     if (!specs.length) continue;
+
+    // Self-heal: delete occurrences that no longer match this template's
+    // current recurrence config (e.g. a template changed from hourly to
+    // daily), so stale slots never pile up on the janitor app. Occurrences
+    // that already have a completion log are kept for history.
+    const specKeys = new Set(specs.map((s) => `${s.dueDate}|${s.dueHour ?? ""}`));
+    const existing = await db
+      .select({
+        id: taskOccurrences.id,
+        dueDate: taskOccurrences.dueDate,
+        dueHour: taskOccurrences.dueHour,
+      })
+      .from(taskOccurrences)
+      .where(
+        and(
+          eq(taskOccurrences.taskTemplateId, template.id),
+          gte(taskOccurrences.dueDate, rangeStart),
+          lte(taskOccurrences.dueDate, rangeEnd),
+        ),
+      );
+    if (existing.length) {
+      const logged = await db
+        .select({ taskOccurrenceId: taskLogs.taskOccurrenceId })
+        .from(taskLogs)
+        .where(
+          and(
+            inArray(taskLogs.taskOccurrenceId, existing.map((o) => o.id)),
+            isNull(taskLogs.deletedAt),
+          ),
+        );
+      const loggedSet = new Set(logged.map((l) => l.taskOccurrenceId));
+      const stale = existing
+        .filter((o) => !specKeys.has(`${o.dueDate}|${o.dueHour ?? ""}`))
+        .filter((o) => !loggedSet.has(o.id));
+      for (let i = 0; i < stale.length; i += 200) {
+        await db
+          .delete(taskOccurrences)
+          .where(
+            inArray(
+              taskOccurrences.id,
+              stale.slice(i, i + 200).map((o) => o.id),
+            ),
+          );
+      }
+    }
+
     const rows = specs.map((s) => ({
       taskTemplateId: template.id,
       facilityId: template.facilityId,

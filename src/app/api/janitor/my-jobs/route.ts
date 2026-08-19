@@ -63,12 +63,12 @@ export async function GET() {
         isNull(taskTemplates.deletedAt),
         eq(taskOccurrences.status, "pending"),
         sql`${taskOccurrences.dueDate} = ${date}::date`,
-        // Hourly tasks surface progressively: the current hour's slot is
-        // prompted when its hour arrives, and any earlier pending slot stays
-        // visible so nothing is silently lost. Future hours are hidden.
+        // Hourly tasks are prompted one slot at a time: only the slot for the
+        // current hour is shown. Earlier slots the janitor missed are tracked
+        // as missed/overdue by the scheduler and on the supervisor dashboard.
         or(
           isNull(taskOccurrences.dueHour),
-          sql`${taskOccurrences.dueHour} <= ${hour}`,
+          sql`${taskOccurrences.dueHour} = ${hour}`,
         ),
       ),
     )
