@@ -2,6 +2,7 @@ import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   customTasks,
+  dutyRoster,
   taskAssignments,
   taskLogs,
   taskOccurrences,
@@ -22,6 +23,17 @@ export async function GET() {
   const facilityId = session.facilityId;
   const date = todayISO();
   const hour = currentHour();
+
+  // Check if janitor is off duty today via roster
+  const [rosterEntry] = await db
+    .select({ onDuty: dutyRoster.onDuty })
+    .from(dutyRoster)
+    .where(and(eq(dutyRoster.userId, session.id), eq(dutyRoster.date, date)))
+    .limit(1);
+
+  if (rosterEntry && !rosterEntry.onDuty) {
+    return Response.json({ scheduled: [], adhoc: [], total: 0, offDuty: true });
+  }
 
   // 1. Scheduled occurrences where this janitor is assigned via template
   const scheduledRows = await db

@@ -466,6 +466,28 @@ export const pushSubscriptions = pgTable(
   (t) => [uniqueIndex("push_subscriptions_endpoint_uq").on(t.endpoint)],
 );
 
+export const dutyRoster = pgTable(
+  "duty_roster",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    date: date("date").notNull(),
+    onDuty: boolean("on_duty").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [uniqueIndex("duty_roster_user_date_uq").on(t.userId, t.date)],
+);
+
+export type DutyRosterEntry = typeof dutyRoster.$inferSelect;
+
 export type Facility = typeof facilities.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
